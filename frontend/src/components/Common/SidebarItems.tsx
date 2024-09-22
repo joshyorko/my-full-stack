@@ -12,12 +12,12 @@ const items = [
   { icon: FiSettings, title: "User Settings", path: "/settings" },
   {
     name: 'Adjudicator Dashboard',
-    path: '/adjudicator',
+    path: '/adjudicator-dashboard', // Correct path
     icon: ClipboardList,
   },
   {
     name: 'Management Dashboard',
-    path: '/management',
+    path: '/management-dashboard', // Correct path
     icon: BarChart2,
   },
 ]

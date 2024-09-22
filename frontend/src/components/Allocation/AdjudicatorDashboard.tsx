@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Clock } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth'; // Adjust this import based on your actual auth hook
 
 interface Claim {
   dcn: string;
@@ -51,6 +50,7 @@ const StatusBar: React.FC<WorkCounts & { avgTransactionTime: number }> = ({
 export default function AdjudicatorDashboard() {
   const [currentClaim, setCurrentClaim] = useState<Claim | null>(null);
   const [workCounts, setWorkCounts] = useState<WorkCounts>({ queue: 0, completed: 0, skipped: 0 });
+  const [avgTransactionTime, setAvgTransactionTime] = useState(0);
   const [startTime, setStartTime] = useState<Date | null>(null);
   const { user } = useAuth(); // Use your actual auth hook
 
