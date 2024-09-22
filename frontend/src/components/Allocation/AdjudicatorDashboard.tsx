@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Clock } from 'lucide-react';
-
+import useAuth from '../../hooks/useAuth';
 interface Claim {
   dcn: string;
   electronic_attachments: string;
