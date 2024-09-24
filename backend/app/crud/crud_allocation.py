@@ -1,9 +1,6 @@
-# backend/app/crud/crud_allocation.py
-
-from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.crud.base import CRUDBase
-from app.models.allocation import Allocation
+from app.models import Allocation
 from app.schemas.allocation import AllocationCreate, AllocationUpdate
 from datetime import datetime
 
