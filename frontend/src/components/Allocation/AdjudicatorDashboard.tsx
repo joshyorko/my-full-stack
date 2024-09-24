@@ -63,19 +63,33 @@ export default function AdjudicatorDashboard() {
 
   const fetchNextClaim = async () => {
     try {
-      const response = await fetch('/api/allocation/get_work');
-      const data = await response.json();
+      const response = await fetch('/api/allocation/get_work', {
+        headers: { 'Authorization': `Bearer ${process.env.SECRET_KEY}` }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const text = await response.text();
+      console.log('fetchNextClaim response:', text);
+      const data = JSON.parse(text);
       setCurrentClaim(data);
       setStartTime(new Date());
     } catch (error) {
       console.error('Error fetching next claim:', error);
     }
   };
-
+  
   const fetchWorkCounts = async () => {
     try {
-      const response = await fetch('/api/allocation/get_work_count');
-      const data = await response.json();
+      const response = await fetch('/api/allocation/get_work_count', {
+        headers: { 'Authorization': `Bearer ${process.env.SECRET_KEY}` }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const text = await response.text();
+      console.log('fetchWorkCounts response:', text);
+      const data = JSON.parse(text);
       setWorkCounts(data);
     } catch (error) {
       console.error('Error fetching work counts:', error);

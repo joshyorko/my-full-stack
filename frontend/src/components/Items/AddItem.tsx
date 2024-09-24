@@ -1,114 +1,155 @@
-import {
-  Button,
-  FormControl,
-  FormErrorMessage,
-  FormLabel,
-  Input,
-  Modal,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
-} from "@chakra-ui/react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { type SubmitHandler, useForm } from "react-hook-form"
+import React, { useState, useEffect } from 'react';
+import { Clock } from 'lucide-react';
+import useAuth from '../../hooks/useAuth';
 
-import { type ApiError, type ItemCreate, ItemsService } from "../../client"
-import useCustomToast from "../../hooks/useCustomToast"
-import { handleError } from "../../utils"
-
-interface AddItemProps {
-  isOpen: boolean
-  onClose: () => void
+interface Claim {
+  dcn: string;
+  electronic_attachments: string;
+  [key: string]: any;
 }
 
-const AddItem = ({ isOpen, onClose }: AddItemProps) => {
-  const queryClient = useQueryClient()
-  const showToast = useCustomToast()
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<ItemCreate>({
-    mode: "onBlur",
-    criteriaMode: "all",
-    defaultValues: {
-      title: "",
-      description: "",
-    },
-  })
+interface WorkCounts {
+  queue: number;
+  completed: number;
+  skipped: number;
+}
 
-  const mutation = useMutation({
-    mutationFn: (data: ItemCreate) =>
-      ItemsService.createItem({ requestBody: data }),
-    onSuccess: () => {
-      showToast("Success!", "Item created successfully.", "success")
-      reset()
-      onClose()
-    },
-    onError: (err: ApiError) => {
-      handleError(err, showToast)
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["items"] })
-    },
-  })
+const ClaimTable: React.FC<{ claim: Claim }> = ({ claim }) => (
+  <div className="w-1/2 p-4 overflow-auto">
+    <table className="w-full border-collapse">
+      <tbody>
+        {Object.entries(claim).map(([key, value]) => (
+          <tr key={key} className="border-b">
+            <td className="p-2 font-semibold">{key}</td>
+            <td className="p-2">{String(value)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+);
 
-  const onSubmit: SubmitHandler<ItemCreate> = (data) => {
-    mutation.mutate(data)
-  }
+const ImageViewer: React.FC<{ attachmentId: string }> = ({ attachmentId }) => (
+  <div className="w-1/2 p-4">
+    <div className="bg-gray-200 h-full flex items-center justify-center">
+      <p>Image Viewer (Attachment ID: {attachmentId})</p>
+    </div>
+  </div>
+);
+
+const StatusBar: React.FC<WorkCounts & { avgTransactionTime: number }> = ({ 
+  queue, completed, skipped, avgTransactionTime 
+}) => (
+  <div className="bg-blue-100 p-4 mb-4 flex justify-between items-center">
+    <div>Queue: {queue}</div>
+    <div>Completed: {completed}</div>
+    <div>Skipped: {skipped}</div>
+    <div>Avg Time: {avgTransactionTime.toFixed(2)}s</div>
+  </div>
+);
+
+export default function AdjudicatorDashboard() {
+  const [currentClaim, setCurrentClaim] = useState<Claim | null>(null);
+  const [workCounts, setWorkCounts] = useState<WorkCounts>({ queue: 0, completed: 0, skipped: 0 });
+  const [avgTransactionTime, setAvgTransactionTime] = useState(0);
+  const [startTime, setStartTime] = useState<Date | null>(null);
+  const { user } = useAuth(); // Use your actual auth hook
+
+  useEffect(() => {
+    if (user) {
+      fetchNextClaim();
+      fetchWorkCounts();
+    }
+  }, [user]);
+
+  const fetchNextClaim = async () => {
+    try {
+      const response = await fetch('/api/allocation/get_work', {
+        headers: { 'Authorization': `Bearer ${process.env.REACT_APP_SECRET_KEY}` }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const text = await response.text();
+      console.log('fetchNextClaim response:', text);
+      const data = JSON.parse(text);
+      setCurrentClaim(data);
+      setStartTime(new Date());
+    } catch (error) {
+      console.error('Error fetching next claim:', error);
+    }
+  };
+
+  const fetchWorkCounts = async () => {
+    try {
+      const response = await fetch('/api/allocation/get_work_count', {
+        headers: { 'Authorization': `Bearer ${process.env.REACT_APP_SECRET_KEY}` }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const text = await response.text();
+      console.log('fetchWorkCounts response:', text);
+      const data = JSON.parse(text);
+      setWorkCounts(data);
+    } catch (error) {
+      console.error('Error fetching work counts:', error);
+    }
+  };
+
+  const handleAction = async (action: 'Skipped' | 'Completed') => {
+    if (!currentClaim || !startTime) return;
+
+    const stopTime = new Date();
+    const duration = (stopTime.getTime() - startTime.getTime()) / 1000;
+
+    try {
+      await fetch('/api/allocation/update_status', {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.REACT_APP_SECRET_KEY}`
+        },
+        body: JSON.stringify({ dcn: currentClaim.dcn, status: action, duration })
+      });
+      await fetchNextClaim();
+      await fetchWorkCounts();
+    } catch (error) {
+      console.error(`Error ${action.toLowerCase()} claim:`, error);
+    }
+  };
+
+  if (!user) return <div>Please log in to access the Adjudicator Dashboard</div>;
+  if (!currentClaim) return <div>Loading...</div>;
 
   return (
-    <>
-      <Modal
-        isOpen={isOpen}
-        onClose={onClose}
-        size={{ base: "sm", md: "md" }}
-        isCentered
-      >
-        <ModalOverlay />
-        <ModalContent as="form" onSubmit={handleSubmit(onSubmit)}>
-          <ModalHeader>Add Item</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody pb={6}>
-            <FormControl isRequired isInvalid={!!errors.title}>
-              <FormLabel htmlFor="title">Title</FormLabel>
-              <Input
-                id="title"
-                {...register("title", {
-                  required: "Title is required.",
-                })}
-                placeholder="Title"
-                type="text"
-              />
-              {errors.title && (
-                <FormErrorMessage>{errors.title.message}</FormErrorMessage>
-              )}
-            </FormControl>
-            <FormControl mt={4}>
-              <FormLabel htmlFor="description">Description</FormLabel>
-              <Input
-                id="description"
-                {...register("description")}
-                placeholder="Description"
-                type="text"
-              />
-            </FormControl>
-          </ModalBody>
-
-          <ModalFooter gap={3}>
-            <Button variant="primary" type="submit" isLoading={isSubmitting}>
-              Save
-            </Button>
-            <Button onClick={onClose}>Cancel</Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-    </>
-  )
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-4">Adjudicator Dashboard</h1>
+      <StatusBar {...workCounts} avgTransactionTime={avgTransactionTime} />
+      <div className="flex mb-4">
+        <ClaimTable claim={currentClaim} />
+        <ImageViewer attachmentId={currentClaim.electronic_attachments} />
+      </div>
+      <div className="flex justify-between items-center">
+        <div className="flex items-center">
+          <Clock className="mr-2" />
+          Start Time: {startTime?.toLocaleTimeString()}
+        </div>
+        <div>
+          <button 
+            onClick={() => handleAction('Skipped')} 
+            className="bg-yellow-500 text-white px-4 py-2 rounded mr-2"
+          >
+            Skip
+          </button>
+          <button 
+            onClick={() => handleAction('Completed')} 
+            className="bg-green-500 text-white px-4 py-2 rounded"
+          >
+            Complete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
-
-export default AddItem

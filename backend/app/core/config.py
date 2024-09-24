@@ -94,7 +94,7 @@ class Settings(BaseSettings):
     FIRST_SUPERUSER: str
     FIRST_SUPERUSER_PASSWORD: str
 
-    ATTACHMENT_SERVICE_URL: str = "http://localhost:8007"  # Update this as needed
+    ATTACHMENT_SERVICE_URL: str = "https://localhost:8001"  # Update this as needed
     MAUI_API_KEY: str
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
